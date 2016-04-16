@@ -1,51 +1,43 @@
 language: cpp
-sudo: required
-dist: trusty
 
 matrix:
   include:
-    - os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['g++-multilib']
-      env:
-        - COMPILER=g++
-        - COMP=gcc
+  - os: linux
+    sudo: required
+    services:
+    - docker
+    env:
+    - BASEEXE=stockfish
+  - os: osx
+    compiler: gcc
+    env:
+    - COMPILER=g++-4.8
+    - COMP=gcc
+    - BASEEXE=stockfish-osx
 
-    - os: linux
-      compiler: clang
-      addons:
-        apt:
-          sources: ['ubuntu-toolchain-r-test']
-          packages: ['clang', 'g++-multilib']
-      env:
-        - COMPILER=clang++
-        - COMP=clang
+before_install:
+- ldd --version || echo no ldd
+- if [ -f /proc/cpuinfo ] ; then cat /proc/cpuinfo; fi
 
-    - os: osx
-      compiler: gcc
-      env:
-        - COMPILER=g++
-        - COMP=gcc
+script: |
+  if [ "$BASEEXE" != "stockfish-osx" ]; then
+    docker build --tag wheezy-for-stockfish .
+    docker run --volume $PWD:/home/builder/Stockfish --user $(id -u) wheezy-for-stockfish
+  else
+    ./unix_build.sh
+  fi
+  ls -lh
 
-    - os: osx
-      compiler: clang
-      env:
-        - COMPILER=clang++ V='Apple LLVM 6.0' # Apple LLVM version 6.0 (clang-600.0.54) (based on LLVM 3.5svn)
-        - COMP=clang
-
-branches:
-  only:
-   - master
-
-before_script:
-  - cd src
-
-script:
-  - make clean && make build ARCH=x86-64 && ./stockfish bench 2>&1 >/dev/null | grep 'Nodes searched' | tee bench1
-  - make clean && make build ARCH=x86-32 && ./stockfish bench 2>&1 >/dev/null | grep 'Nodes searched' | tee bench2
-  - echo "Checking for same bench numbers..."
-  - diff bench1 bench2 > result
-  - test ! -s result
+deploy:
+  provider: releases
+  api_key:
+    secure: Syi4MLMPTt+p3MOcSpg3goBU80Nt/aqhmvhnE6BLrwaKXg40fTA/swBeNcKsV+wxAFkI8QjAi/IYS9xuNBN4lOZ7TbC8ICEDzPfq+jIhlMWJZPbWxXZxMnhXdqQv0Ohw1C7SyPNcLDzYKGaawNbuvVHnV64s4mTak5lS/lz9NU3jgj4ZEhp4mSCB6cwkiqJG0EzCszx93KK6bVnGLXSQRO+MmZEnoSksA790OFUuMhasokqHkIkhDCy5HZ6cHFGRCdZ1xWPSnhOOjIP10j6E1aXKaRBKL7XdFWGeFM7bXSmZf+X3uWIZ+lP8w5gBEpkFRzmjgGGH7lriZ0wim65jJAQ9NaDINPGwYE96yfbIVN+yHqXcKPc6PboHntV70hUxfOEYWeOFrHYCzlXfwN1MenwmmDJhT2bwoSAqO8jdaoczPLX+z4J0fP/19TI9ULSM8IwYOxWyOHUagtQ9ouZURrO402iptNdCDxjHNiYjtCAl34JvwVDnHqbHE1woy9nyoHDobNFdeID6nsBXdugVVzmh1WTG41vOW+qbU4XqMv+fAbVWnosCIuUZu2hpz97vOXT7AZUoTvAM3zKsl46pmELzufM5z2pCupOOsUaV1+va1NkGygnKC3r7QKEgAi1sMq7146qsvHLaV5yJ74Z0avWn18cFntnjaqGI3X9hAC8=
+  prerelease: true
+  file_glob: true
+  file:
+    - $BASEEXE-*
+  skip_cleanup: true
+  on:
+    tags: true
+    repo: niklasf/Stockfish
+    branch: fishnet
