@@ -9,10 +9,10 @@ matrix:
     env:
     - BASEEXE=stockfish
   - os: osx
-    compiler: gcc
+    compiler: clang
     env:
-    - COMPILER=g++-4.8
-    - COMP=gcc
+    - COMPILER=clang++ V='Apple LLVM 6.0'
+    - COMP=clang
     - BASEEXE=stockfish-osx
 
 before_install:
