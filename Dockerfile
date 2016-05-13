@@ -4,4 +4,4 @@ VOLUME /home/builder/Stockfish
 WORKDIR /home/builder/Stockfish
 RUN groupadd -r builder && useradd -r -g builder builder
 USER builder
-CMD ./unix_build.sh
+CMD ./linux_build.sh
