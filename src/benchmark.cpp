@@ -155,39 +155,41 @@ void benchmark(const Position& current, istream& is) {
 
   for (size_t i = 0; i < fens.size(); ++i)
   {
-      int variant = STANDARD_VARIANT;
-      if (Options["UCI_Chess960"])
-          variant |= CHESS960_VARIANT;
-#ifdef ANTI
-    if (!((string)Options["UCI_Variant"]).compare("antichess"))
-        variant |= ANTI_VARIANT;
-#endif
+      Variant variant = CHESS_VARIANT;
 #ifdef ATOMIC
-    if (!((string)Options["UCI_Variant"]).compare("atomic"))
-        variant |= ATOMIC_VARIANT;
+    if (!(Options["UCI_Variant"].compare("atomic")))
+        variant = ATOMIC_VARIANT;
 #endif
-#ifdef HOUSE
-    if (!((string)Options["UCI_Variant"]).compare("crazyhouse"))
-        variant |= HOUSE_VARIANT;
+#ifdef CRAZYHOUSE
+    if (!(Options["UCI_Variant"].compare("crazyhouse")))
+        variant = CRAZYHOUSE_VARIANT;
+#endif
+#ifdef ANTI
+    if (!(Options["UCI_Variant"].compare("giveaway")))
+        variant = ANTI_VARIANT;
 #endif
 #ifdef HORDE
-    if (!((string)Options["UCI_Variant"]).compare("horde"))
-        variant |= HORDE_VARIANT;
+    if (!(Options["UCI_Variant"].compare("horde")))
+        variant = HORDE_VARIANT;
 #endif
 #ifdef KOTH
-    if (!((string)Options["UCI_Variant"]).compare("kingofthehill"))
-        variant |= KOTH_VARIANT;
+    if (!(Options["UCI_Variant"].compare("kingofthehill")))
+        variant = KOTH_VARIANT;
 #endif
 #ifdef RACE
-    if (!((string)Options["UCI_Variant"]).compare("racingkings"))
-        variant |= RACE_VARIANT;
+    if (!(Options["UCI_Variant"].compare("racingkings")))
+        variant = RACE_VARIANT;
+#endif
+#ifdef RELAY
+    if (!(Options["UCI_Variant"].compare("relay")))
+        variant = RELAY_VARIANT;
 #endif
 #ifdef THREECHECK
-    if (!((string)Options["UCI_Variant"]).compare("threecheck"))
-        variant |= THREECHECK_VARIANT;
+    if (!(Options["UCI_Variant"].compare("threecheck")))
+        variant = THREECHECK_VARIANT;
 #endif
       StateListPtr states(new std::deque<StateInfo>(1));
-      pos.set(fens[i], variant, &states->back(), Threads.main());
+      pos.set(fens[i], Options["UCI_Chess960"], variant, &states->back(), Threads.main());
 
       cerr << "\nPosition: " << i + 1 << '/' << fens.size() << endl;
 

@@ -105,22 +105,57 @@ typedef uint64_t Bitboard;
 const int MAX_MOVES = 256;
 const int MAX_PLY   = 128;
 
-//static const constexpr char* variants[] doesn't play nicely with uci.h
-static std::vector<std::string> variants = {"standard"
+enum Variant {
+  CHESS_VARIANT,
 #ifdef ANTI
-,"antichess"
+  ANTI_VARIANT,
 #endif
 #ifdef ATOMIC
+  ATOMIC_VARIANT,
+#endif
+#ifdef CRAZYHOUSE
+  CRAZYHOUSE_VARIANT,
+#endif
+#ifdef HORDE
+  HORDE_VARIANT,
+#endif
+#ifdef KOTH
+  KOTH_VARIANT,
+#endif
+#ifdef RACE
+  RACE_VARIANT,
+#endif
+#ifdef RELAY
+  RELAY_VARIANT,
+#endif
+#ifdef THREECHECK
+  THREECHECK_VARIANT,
+#endif
+  VARIANT_NB
+};
+
+//static const constexpr char* variants[] doesn't play nicely with uci.h
+static std::vector<std::string> variants = {"chess"
+#ifdef ATOMIC
 ,"atomic"
+#endif
+#ifdef ANTI
+,"giveaway"
+#endif
+#ifdef CRAZYHOUSE
+,"crazyhouse"
 #endif
 #ifdef HORDE
 ,"horde"
 #endif
-#ifdef KINGOFTHEHILL
+#ifdef KOTH
 ,"kingofthehill"
 #endif
 #ifdef RACE
 ,"racingkings"
+#endif
+#ifdef RELAY
+,"relay"
 #endif
 #ifdef THREECHECK
 ,"threecheck"
@@ -247,10 +282,7 @@ enum Piece {
 
 const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
                          B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
-extern Value PieceValue[PHASE_NB][PIECE_NB];
-#ifdef ANTI
-extern Value PieceValueAnti[PHASE_NB][PIECE_NB];
-#endif
+extern Value PieceValue[VARIANT_NB][PHASE_NB][PIECE_NB];
 
 enum Depth {
 
@@ -280,17 +312,15 @@ enum Square {
 
   SQUARE_NB = 64,
 
-  DELTA_N =  8,
-  DELTA_E =  1,
-  DELTA_S = -8,
-  DELTA_W = -1,
+  NORTH =  8,
+  EAST  =  1,
+  SOUTH = -8,
+  WEST  = -1,
 
-  DELTA_NN = DELTA_N + DELTA_N,
-  DELTA_NE = DELTA_N + DELTA_E,
-  DELTA_SE = DELTA_S + DELTA_E,
-  DELTA_SS = DELTA_S + DELTA_S,
-  DELTA_SW = DELTA_S + DELTA_W,
-  DELTA_NW = DELTA_N + DELTA_W
+  NORTH_EAST = NORTH + EAST,
+  SOUTH_EAST = SOUTH + EAST,
+  SOUTH_WEST = SOUTH + WEST,
+  NORTH_WEST = NORTH + WEST
 };
 
 enum File {
@@ -344,6 +374,7 @@ inline T operator/(T d, int i) { return T(int(d) / i); }        \
 inline int operator/(T d1, T d2) { return int(d1) / int(d2); }  \
 inline T& operator/=(T& d, int i) { return d = T(int(d) / i); }
 
+ENABLE_FULL_OPERATORS_ON(Variant)
 ENABLE_FULL_OPERATORS_ON(Value)
 ENABLE_FULL_OPERATORS_ON(PieceType)
 ENABLE_FULL_OPERATORS_ON(Piece)
@@ -447,7 +478,7 @@ inline bool opposite_colors(Square s1, Square s2) {
 }
 
 inline Square pawn_push(Color c) {
-  return c == WHITE ? DELTA_N : DELTA_S;
+  return c == WHITE ? NORTH : SOUTH;
 }
 
 inline Square from_sq(Move m) {
