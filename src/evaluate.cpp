@@ -194,8 +194,7 @@ namespace {
 #endif
 
 #ifdef ATOMIC
-  Score CloseEnemiesAtomic = S( 17,   0);
-  Score PawnBonusAtomic    = S(200, 199);
+  const Score CloseEnemiesAtomic = S( 17,   0);
 #endif
 
   // PassedFile[File] contains a bonus according to the file of a passed pawn
@@ -955,9 +954,7 @@ namespace {
 #ifdef HORDE
     if (pos.is_horde() && pos.is_horde_color(Us))
     {
-        weight += pos.non_pawn_material(Them) / PawnValueMg;
-        bonus = bonus * weight * weight / 200;
-        return make_score(bonus, bonus) + make_score(pos.non_pawn_material(Them) * 2 / 9, 0);
+        return make_score(bonus * weight * weight / 200, 0);
     }
 #endif
 #ifdef KOTH
@@ -1132,6 +1129,9 @@ Value Eval::evaluate(const Position& pos) {
 #ifdef ANTI
   if (pos.is_anti()) {} else
 #endif
+#ifdef CRAZYHOUSE
+  if (pos.is_house()) {} else
+#endif
   if (ei.me->specialized_eval_exists())
       return ei.me->evaluate(pos);
 
@@ -1213,10 +1213,6 @@ Value Eval::evaluate(const Position& pos) {
   score += evaluate_initiative(pos, ei.pi->pawn_asymmetry(), eg_value(score));
 #ifdef HORDE
   }
-#endif
-#ifdef ATOMIC
-  if (pos.is_atomic())
-      score += (pos.count<PAWN>(WHITE) - pos.count<PAWN>(BLACK)) * PawnBonusAtomic;
 #endif
 
   // Evaluate scale factor for the winning side
