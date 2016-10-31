@@ -178,6 +178,8 @@ public:
   void add_to_hand(Color c, PieceType pt);
   void remove_from_hand(Color c, PieceType pt);
   bool is_promoted(Square s) const;
+  void drop_piece(Piece pc, Square s);
+  void undrop_piece(Piece pc, Square s);
 #endif
 #ifdef KOTH
   bool is_koth() const;
@@ -209,7 +211,6 @@ public:
 #endif
   Thread* this_thread() const;
   uint64_t nodes_searched() const;
-  void set_nodes_searched(uint64_t n);
   bool is_draw() const;
   int rule50_count() const;
   Score psq_score() const;
@@ -278,6 +279,10 @@ inline Piece Position::piece_on(Square s) const {
 }
 
 inline Piece Position::moved_piece(Move m) const {
+#ifdef CRAZYHOUSE
+  if (type_of(m) == DROP)
+      return dropped_piece(m);
+#endif
   return board[from_sq(m)];
 }
 
@@ -469,10 +474,6 @@ inline uint64_t Position::nodes_searched() const {
   return nodes;
 }
 
-inline void Position::set_nodes_searched(uint64_t n) {
-  nodes = n;
-}
-
 inline bool Position::opposite_bishops() const {
   return   pieceCount[W_BISHOP] == 1
         && pieceCount[B_BISHOP] == 1
@@ -633,7 +634,11 @@ inline bool Position::capture_or_promotion(Move m) const {
     return (type_of(board[from]) == KING && rank_of(to) >= rank_of(from)) || !empty(to);
   }
 #endif
+#ifdef CRAZYHOUSE
+  return type_of(m) != NORMAL ? type_of(m) != DROP && type_of(m) != CASTLING : !empty(to_sq(m));
+#else
   return type_of(m) != NORMAL ? type_of(m) != CASTLING : !empty(to_sq(m));
+#endif
 }
 
 inline bool Position::capture(Move m) const {
@@ -695,5 +700,20 @@ inline void Position::move_piece(Piece pc, Square from, Square to) {
   index[to] = index[from];
   pieceList[pc][index[to]] = to;
 }
+
+#ifdef CRAZYHOUSE
+inline void Position::drop_piece(Piece pc, Square s) {
+  assert(pieceCountInHand[color_of(pc)][type_of(pc)]);
+  put_piece(pc, s);
+  pieceCountInHand[color_of(pc)][type_of(pc)]--;
+}
+
+inline void Position::undrop_piece(Piece pc, Square s) {
+  remove_piece(pc, s);
+  board[s] = NO_PIECE;
+  pieceCountInHand[color_of(pc)][type_of(pc)]++;
+  assert(pieceCountInHand[color_of(pc)][type_of(pc)]);
+}
+#endif
 
 #endif // #ifndef POSITION_H_INCLUDED

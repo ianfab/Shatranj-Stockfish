@@ -187,6 +187,13 @@ namespace {
   };
 #endif
 
+#ifdef KOTH
+  const Score KothDistanceBonus[6] = {
+    S(1634, 1553), S(400, 384), S(165, 174), S(83, 87), S(49, 50), S(0, 0)
+  };
+  const Score KothSafeCenter = S(159, 211);
+#endif
+
 #ifdef ANTI
   const Score ForcedCaptureAnti = S(1135, 1470);
   const Score PieceCountAnti    = S(122, 124);
@@ -195,6 +202,14 @@ namespace {
 
 #ifdef ATOMIC
   const Score CloseEnemiesAtomic = S( 17,   0);
+#endif
+
+#ifdef RACE
+  // Bonus for distance of king from 8th rank
+  const Score KingRaceBonus[RANK_NB] = {
+    S(14216, 14428), S(5931, 5364), S(4372, 3800), S(2678, 2467),
+    S( 1577,  1515), S( 960,  914), S( 518,  480), S(   0,    0)
+  };
 #endif
 
   // PassedFile[File] contains a bonus according to the file of a passed pawn
@@ -217,6 +232,8 @@ namespace {
   const Score Hanging             = S(48, 27);
   const Score ThreatByPawnPush    = S(38, 22);
   const Score Unstoppable         = S( 0, 20);
+  const Score PawnlessFlank       = S(20, 80);
+  const Score HinderPassedPawn    = S( 7,  0);
 
   // Penalty for a bishop on a1/h1 (a8/h8 for black) which is trapped by
   // a friendly pawn on b2/g2 (b7/g7 for black). This can obviously only
@@ -426,12 +443,6 @@ namespace {
 
     // King shelter and enemy pawns storm
     Score score = ei.pi->king_safety<Us>(pos, ksq);
-#ifdef RACE
-    if (pos.is_race())
-        score = make_score(0, 0);
-    else
-    {
-#endif
 
     // Main king safety evaluation
     if (ei.kingAttackersCount[Them])
@@ -542,12 +553,10 @@ namespace {
             score -= make_score(std::min(kingDanger * kingDanger / 4096,  2 * int(BishopValueMg)), 0);
         }
     }
-#ifdef RACE
-    }
-#endif
 
     // King tropism: firstly, find squares that opponent attacks in our king flank
-    b = ei.attackedBy[Them][ALL_PIECES] & KingFlank[Us][file_of(ksq)];
+    File kf = file_of(ksq);
+    b = ei.attackedBy[Them][ALL_PIECES] & KingFlank[Us][kf];
 
     assert(((Us == WHITE ? b << 4 : b >> 4) & b) == 0);
     assert(popcount(Us == WHITE ? b << 4 : b >> 4) == popcount(b));
@@ -563,6 +572,10 @@ namespace {
     else
 #endif
     score -= CloseEnemies * popcount(b);
+
+    // Penalty when our king is on a pawnless flank
+    if (!(pos.pieces(PAWN) & (KingFlank[WHITE][kf] | KingFlank[BLACK][kf])))
+        score -= PawnlessFlank;
 
     if (DoTrace)
         Trace::add(KING, Us, score);
@@ -744,13 +757,8 @@ namespace {
   Score evaluate_passed_pawns(const Position& pos, const EvalInfo& ei) {
 
     const Color Them = (Us == WHITE ? BLACK : WHITE);
-#ifdef RACE
-    const Color Up = pos.is_race() ? WHITE : Us;
-#else
-    const Color Up = Us;
-#endif
 
-    Bitboard b, squaresToQueen, defendedSquares, unsafeSquares;
+    Bitboard b, bb, squaresToQueen, defendedSquares, unsafeSquares;
     Score score = SCORE_ZERO;
 
 #ifdef RACE
@@ -758,11 +766,10 @@ namespace {
     {
         Square ksq = pos.square<KING>(Us);
         int s = relative_rank(BLACK, ksq);
-        for (Rank i = Rank(rank_of(ksq) + 1); i < RANK_8; ++i)
-            if (!(rank_bb(i) & DistanceRingBB[ksq][i - 1 - rank_of(ksq)] & ~ei.attackedBy[Them][ALL_PIECES] & ~pos.pieces(Us)))
+        for (Rank kr = rank_of(ksq), r = Rank(kr + 1); r <= RANK_8; ++r)
+            if (!(rank_bb(r) & DistanceRingBB[ksq][r - 1 - kr] & ~ei.attackedBy[Them][ALL_PIECES] & ~pos.pieces(Us)))
                 s++;
-        Value v = MidgameLimit / (s + 1);
-        score = make_score(v, v);
+        score = KingRaceBonus[std::min(s, 7)];
     }
     else
     {
@@ -776,10 +783,11 @@ namespace {
         Square center[4] = {SQ_E4, SQ_D4, SQ_D5, SQ_E5};
         for (int i = 0; i<4; i++)
         {
-            int dist = distance(ksq, center[i])+popcount(pos.attackers_to(center[i]) & pos.pieces(Them))+popcount(pos.pieces(Us) & center[i]) ;
+            int dist = distance(ksq, center[i])
+                      + popcount(pos.attackers_to(center[i]) & pos.pieces(Them))
+                      + popcount(pos.pieces(Us) & center[i]) ;
             assert(dist > 0);
-            Value bonus = RookValueMg / (dist * dist);
-            score += make_score(bonus, bonus);
+            score += KothDistanceBonus[std::min(dist - 1, 5)];
         }
     }
 #endif
@@ -790,20 +798,23 @@ namespace {
         assert(pos.pawn_passed(Us, s));
         assert(!(pos.pieces(PAWN) & forward_bb(Us, s)));
 
-        int r = relative_rank(Up, s) - RANK_2;
+        bb = forward_bb(Us, s) & (ei.attackedBy[Them][ALL_PIECES] | pos.pieces(Them));
+        score -= HinderPassedPawn * popcount(bb);
+
+        int r = relative_rank(Us, s) - RANK_2;
         int rr = r * (r - 1);
 
         Value mbonus = Passed[MG][r], ebonus = Passed[EG][r];
 
         if (rr)
         {
-            Square pawnPush = pawn_push(Up);
+            Square pawnPush = pawn_push(Us);
             Square blockSq = s + pawnPush;
 #ifdef HORDE
             if (pos.is_horde())
             {
                 // Assume a horde king distance of approximately 5
-                if (Us == WHITE)
+                if (pos.is_horde_color(Us))
                     ebonus += distance(pos.square<KING>(Them), blockSq) * 5 * rr - 10 * rr;
                 else
                     ebonus += 25 * rr - distance(pos.square<KING>(Us), blockSq) * 2 * rr;
@@ -831,7 +842,7 @@ namespace {
                 {
                     ebonus -= distance(ksq, blockSq) * 2 * rr;
                     // If blockSq is not the queening square then consider also a second push
-                    if (relative_rank(Up, blockSq) != RANK_8)
+                    if (relative_rank(Us, blockSq) != RANK_8)
                         ebonus -= distance(ksq, blockSq + pawnPush) * rr;
                 }
             }
@@ -843,7 +854,7 @@ namespace {
                      - distance(pos.square<KING>(Us  ), blockSq) * 2 * rr;
 
             // If blockSq is not the queening square then consider also a second push
-            if (relative_rank(Up, blockSq) != RANK_8)
+            if (relative_rank(Us, blockSq) != RANK_8)
                 ebonus -= distance(pos.square<KING>(Us), blockSq + pawnPush) * rr;
             }
 
@@ -855,7 +866,7 @@ namespace {
                 // in the pawn's path attacked or occupied by the enemy.
                 defendedSquares = unsafeSquares = squaresToQueen = forward_bb(Us, s);
 
-                Bitboard bb = forward_bb(Them, s) & pos.pieces(ROOK, QUEEN) & pos.attacks_from<ROOK>(s);
+                bb = forward_bb(Them, s) & pos.pieces(ROOK, QUEEN) & pos.attacks_from<ROOK>(s);
 
                 if (!(pos.pieces(Us) & bb))
                     defendedSquares &= ei.attackedBy[Us][ALL_PIECES];
@@ -959,10 +970,8 @@ namespace {
 #endif
 #ifdef KOTH
     if (pos.is_koth())
-    {
-        int koth_bonus = 200 * popcount(safe & behind & (Rank4BB | Rank5BB) & (FileDBB | FileEBB));
-        return make_score(bonus * weight * weight / 22, 0) + make_score(koth_bonus, koth_bonus);
-    }
+        return make_score(bonus * weight * weight / 22, 0)
+              + KothSafeCenter * popcount(safe & behind & (Rank4BB | Rank5BB) & (FileDBB | FileEBB));
 #endif
 
     return make_score(bonus * weight * weight / 18, 0);
@@ -1170,6 +1179,9 @@ Value Eval::evaluate(const Position& pos) {
 
 #ifdef ANTI
   if (pos.is_anti()) {} else
+#endif
+#ifdef RACE
+  if (pos.is_race()) {} else
 #endif
   // Evaluate kings after all other pieces because we need full attack
   // information when computing the king safety evaluation.
