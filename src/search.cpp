@@ -140,6 +140,7 @@ namespace {
     return Value(d * d + 2 * d - 2);
   }
 
+#ifdef SKILL
   // Skill structure is used to implement strength limit
   struct Skill {
     Skill(int l) : level(l) {}
@@ -151,6 +152,7 @@ namespace {
     int level;
     Move best = MOVE_NONE;
   };
+#endif
 
   // EasyMoveManager structure is used to detect an 'easy move'. When the PV is
   // stable across multiple search iterations, we can quickly return the best move.
@@ -378,7 +380,9 @@ void MainThread::search() {
   if (   !this->easyMovePlayed
       &&  Options["MultiPV"] == 1
       && !Limits.depth
+#ifdef SKILL
       && !Skill(Options["Skill Level"]).enabled()
+#endif
       &&  rootMoves[0].pv[0] != MOVE_NONE)
   {
       for (Thread* th : Threads)
@@ -482,12 +486,14 @@ void Thread::search() {
   }
 
   size_t multiPV = Options["MultiPV"];
+#ifdef SKILL
   Skill skill(Options["Skill Level"]);
 
   // When playing with strength handicap enable MultiPV search that we will
   // use behind the scenes to retrieve a set of possible moves.
   if (skill.enabled())
       multiPV = std::max(multiPV, (size_t)4);
+#endif
 
   multiPV = std::min(multiPV, rootMoves.size());
 
@@ -540,7 +546,7 @@ void Thread::search() {
               // search the already searched PV lines are preserved.
               std::stable_sort(rootMoves.begin() + PVIdx, rootMoves.end());
 
-              // If search has been stopped, break immediately. Sorting and
+              // If search has been stopped, we break immediately. Sorting and
               // writing PV back to TT is safe because RootMoves is still
               // valid, although it refers to the previous iteration.
               if (Signals.stop)
@@ -596,9 +602,11 @@ void Thread::search() {
       if (!mainThread)
           continue;
 
+#ifdef SKILL
       // If skill level is enabled and time is up, pick a sub-optimal best move
       if (skill.enabled() && skill.time_to_pick(rootDepth))
           skill.pick_best(multiPV);
+#endif
 
       // Have we found a "mate in x"?
       if (   Limits.mate
@@ -622,7 +630,7 @@ void Thread::search() {
 
               bool doEasyMove =   rootMoves[0].pv[0] == easyMove
                                && mainThread->bestMoveChanges < 0.03
-                               && Time.elapsed() > Time.optimum() * 5 / 42;
+                               && Time.elapsed() > Time.optimum() * 5 / 44;
 
               if (   rootMoves.size() == 1
                   || Time.elapsed() > Time.optimum() * unstablePvFactor * improvingFactor / 628
@@ -652,10 +660,12 @@ void Thread::search() {
   if (EasyMove.stableCnt < 6 || mainThread->easyMovePlayed)
       EasyMove.clear();
 
+#ifdef SKILL
   // If skill level is enabled, swap best PV line with the sub-optimal one
   if (skill.enabled())
       std::swap(rootMoves[0], *std::find(rootMoves.begin(),
                 rootMoves.end(), skill.best_move(multiPV)));
+#endif
 }
 
 
@@ -681,7 +691,7 @@ namespace {
     Key posKey;
     Move ttMove, move, excludedMove, bestMove;
     Depth extension, newDepth;
-    Value bestValue, value, ttValue, eval, nullValue;
+    Value bestValue, value, ttValue, eval;
     bool ttHit, inCheck, givesCheck, singularExtensionNode, improving;
     bool captureOrPromotion, doFullDepthSearch, moveCountPruning;
     Piece moved_piece;
@@ -879,7 +889,6 @@ namespace {
     // Step 6. Razoring (skipped when in check)
     if (   !PvNode
         &&  depth < 4 * ONE_PLY
-        &&  ttMove == MOVE_NONE
         &&  eval + razor_margin[pos.variant()][depth / ONE_PLY] <= alpha)
     {
         if (depth <= ONE_PLY)
@@ -926,8 +935,8 @@ namespace {
         Depth R = ((823 + 67 * depth / ONE_PLY) / 256 + std::min((eval - beta) / PawnValueMg, 3)) * ONE_PLY;
 
         pos.do_null_move(st);
-        nullValue = depth-R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss+1, -beta, -beta+1)
-                                      : - search<NonPV>(pos, ss+1, -beta, -beta+1, depth-R, !cutNode, true);
+        Value nullValue = depth-R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss+1, -beta, -beta+1)
+                                            : - search<NonPV>(pos, ss+1, -beta, -beta+1, depth-R, !cutNode, true);
         pos.undo_null_move();
 
         if (nullValue >= beta)
@@ -1065,8 +1074,8 @@ moves_loop: // When in check search starts from here
 #ifdef ANTI
       if (    pos.is_anti()
           && !moveCountPruning
-          && (pos.attackers_to(to_sq(move)) & pos.pieces(~pos.side_to_move()))
-          && !pos.capture(move))
+          && pos.capture(move)
+          && MoveList<LEGAL>(pos).size() == 1)
           extension = ONE_PLY;
 #endif
 
@@ -1672,7 +1681,7 @@ moves_loop: // When in check search starts from here
     }
   }
 
-
+#ifdef SKILL
   // When playing with strength handicap, choose best move among a set of RootMoves
   // using a statistical rule dependent on 'level'. Idea by Heinz van Saanen.
 
@@ -1705,6 +1714,7 @@ moves_loop: // When in check search starts from here
 
     return best;
   }
+#endif
 
 
   // check_time() is used to print debug info and, more importantly, to detect
