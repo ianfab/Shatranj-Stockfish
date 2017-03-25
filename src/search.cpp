@@ -63,6 +63,10 @@ namespace {
   // Different node types, used as a template parameter
   enum NodeType { NonPV, PV };
 
+  // Sizes and phases of the skip-blocks, used for distributing search depths across the threads
+  const int skipSize[]  = { 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4 };
+  const int skipPhase[] = { 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7 };
+
   // Razoring and futility margin based on depth
   const int razor_margin[VARIANT_NB][4] = {
   { 483, 570, 603, 554 },
@@ -79,7 +83,7 @@ namespace {
   { 464, 706, 625, 555 },
 #endif
 #ifdef KOTH
-  { 483, 570, 603, 554 },
+  { 524, 587, 676, 582 },
 #endif
 #ifdef LOSERS
   { 1981, 2335, 2351, 2142 },
@@ -91,7 +95,7 @@ namespace {
   { 483, 570, 603, 554 },
 #endif
 #ifdef THREECHECK
-  { 2000, 2000, 2000, 2000 },
+  { 1989, 1919, 2092, 2102 },
 #endif
   };
   const int futility_margin_factor[VARIANT_NB] = {
@@ -109,7 +113,7 @@ namespace {
   151,
 #endif
 #ifdef KOTH
-  150,
+  192,
 #endif
 #ifdef LOSERS
   593,
@@ -121,7 +125,7 @@ namespace {
   150,
 #endif
 #ifdef THREECHECK
-  300,
+  265,
 #endif
   };
   Value futility_margin(Variant var, Depth d) { return Value(futility_margin_factor[var] * d / ONE_PLY); }
@@ -140,7 +144,7 @@ namespace {
   { 261, 162 },
 #endif
 #ifdef KOTH
-  { 256, 200 },
+  { 418, 305 },
 #endif
 #ifdef LOSERS
   { 299, 281 },
@@ -152,7 +156,7 @@ namespace {
   { 256, 200 },
 #endif
 #ifdef THREECHECK
-  { 256, 200 },
+  { 356, 291 },
 #endif
   };
   const int probcut_margin[VARIANT_NB] = {
@@ -170,7 +174,7 @@ namespace {
   153,
 #endif
 #ifdef KOTH
-  200,
+  324,
 #endif
 #ifdef LOSERS
   200,
@@ -182,7 +186,7 @@ namespace {
   200,
 #endif
 #ifdef THREECHECK
-  200,
+  379,
 #endif
   };
 
@@ -197,7 +201,7 @@ namespace {
   // History and stats update bonus, based on depth
   Value stat_bonus(Depth depth) {
     int d = depth / ONE_PLY ;
-    return Value(d * d + 2 * d - 2);
+    return d > 17 ? VALUE_ZERO : Value(d * d + 2 * d - 2);
   }
 
 #ifdef SKILL
@@ -280,7 +284,7 @@ void Search::init() {
       for (int d = 1; d < 64; ++d)
           for (int mc = 1; mc < 64; ++mc)
           {
-              double r = log(d) * log(mc) / 2;
+              double r = log(d) * log(mc) / 1.95;
 
               Reductions[NonPV][imp][d][mc] = int(std::round(r));
               Reductions[PV][imp][d][mc] = std::max(Reductions[NonPV][imp][d][mc] - 1, 0);
@@ -489,13 +493,10 @@ void MainThread::search() {
   std::cout << sync_endl;
 }
 
-// Sizes and phases of the skip-blocks, used for distributing search depths across the threads.
-static int skipsize[20] = {1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
-static int phase   [20] = {0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7};
 
-// Thread::search() is the main iterative deepening loop. It calls search()
-// repeatedly with increasing depth until the allocated thinking time has been
-// consumed, the user stops the search, or the maximum search depth is reached.
+/// Thread::search() is the main iterative deepening loop. It calls search()
+/// repeatedly with increasing depth until the allocated thinking time has been
+/// consumed, the user stops the search, or the maximum search depth is reached.
 
 void Thread::search() {
 
@@ -505,8 +506,8 @@ void Thread::search() {
   MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
 
   std::memset(ss-4, 0, 7 * sizeof(Stack));
-  for(int i = -4; i < 0; i++) 
-     (ss+i)->counterMoves = &this->counterMoveHistory[NO_PIECE][0]; // use as sentinel.
+  for(int i = 4; i > 0; i--)
+     (ss-i)->counterMoves = &this->counterMoveHistory[NO_PIECE][0]; // Use as sentinel
 
   bestValue = delta = alpha = -VALUE_INFINITE;
   beta = VALUE_INFINITE;
@@ -533,16 +534,18 @@ void Thread::search() {
 
   multiPV = std::min(multiPV, rootMoves.size());
 
-  int hIdx = (idx - 1) % 20; // helper index, cycle after 20 threads
-
   // Iterative deepening loop until requested to stop or the target depth is reached
   while (   (rootDepth += ONE_PLY) < DEPTH_MAX
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
-      // skip half of the plies in blocks depending on game ply and helper index.
-      if (idx && ((rootDepth / ONE_PLY + rootPos.game_ply() + phase[hIdx]) / skipsize[hIdx]) % 2)
-          continue;
+      // Distribute search depths across the threads
+      if (idx)
+      {
+          int i = (idx - 1) % 20;
+          if (((rootDepth / ONE_PLY + rootPos.game_ply() + skipPhase[i]) / skipSize[i]) % 2)
+              continue;
+      }
 
       // Age out PV variability metric
       if (mainThread)
@@ -726,7 +729,7 @@ namespace {
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval;
     bool ttHit, inCheck, givesCheck, singularExtensionNode, improving;
-    bool captureOrPromotion, doFullDepthSearch, moveCountPruning;
+    bool captureOrPromotion, doFullDepthSearch, moveCountPruning, skipQuiets;
     Piece moved_piece;
     int moveCount, quietCount;
 
@@ -1037,12 +1040,12 @@ namespace {
 
 moves_loop: // When in check search starts from here
 
-    const CounterMoveStats* cmh  = (ss-1)->counterMoves;
-    const CounterMoveStats* fmh  = (ss-2)->counterMoves;
-    const CounterMoveStats* fmh2 = (ss-4)->counterMoves;
+    const CounterMoveStats& cmh = *(ss-1)->counterMoves;
+    const CounterMoveStats& fmh = *(ss-2)->counterMoves;
+    const CounterMoveStats& fm2 = *(ss-4)->counterMoves;
     const bool cm_ok = is_ok((ss-1)->currentMove);
     const bool fm_ok = is_ok((ss-2)->currentMove);
-    const bool fm2_ok = is_ok((ss-4)->currentMove);
+    const bool f2_ok = is_ok((ss-4)->currentMove);
 
     MovePicker mp(pos, ttMove, depth, ss);
     value = bestValue; // Workaround a bogus 'uninitialized' warning under gcc
@@ -1057,10 +1060,11 @@ moves_loop: // When in check search starts from here
                            && !excludedMove // Recursive singular search is not allowed
                            && (tte->bound() & BOUND_LOWER)
                            &&  tte->depth() >= depth - 3 * ONE_PLY;
+    skipQuiets = false;
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
-    while ((move = mp.next_move()) != MOVE_NONE)
+    while ((move = mp.next_move(skipQuiets)) != MOVE_NONE)
     {
       assert(is_ok(move));
 
@@ -1102,19 +1106,7 @@ moves_loop: // When in check search starts from here
       moveCountPruning =   depth < 16 * ONE_PLY
                         && moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
 
-      // Step 12. Extensions
-      // Extend checks
-      if (    givesCheck
-          && !moveCountPruning
-          &&  pos.see_ge(move, VALUE_ZERO))
-          extension = ONE_PLY;
-#ifdef ANTI
-      if (    pos.is_anti()
-          && !moveCountPruning
-          && pos.capture(move)
-          && MoveList<LEGAL>(pos).size() == 1)
-          extension = ONE_PLY;
-#endif
+      // Step 12. Singular and Gives Check Extensions
 
       // Singular extension search. If all moves but one fail low on a search of
       // (alpha-s, beta-s), and just one fails high on (alpha, beta), then that move
@@ -1123,7 +1115,6 @@ moves_loop: // When in check search starts from here
       // ttValue minus a margin then we extend the ttMove.
       if (    singularExtensionNode
           &&  move == ttMove
-          && !extension
           &&  pos.legal(move))
       {
           Value rBeta = std::max(ttValue - 2 * depth / ONE_PLY, -VALUE_MATE);
@@ -1135,14 +1126,22 @@ moves_loop: // When in check search starts from here
           if (value < rBeta)
               extension = ONE_PLY;
       }
+      else if (   givesCheck
+               && !moveCountPruning
+               &&  pos.see_ge(move, VALUE_ZERO))
+          extension = ONE_PLY;
+#ifdef ANTI
+      else if (   pos.is_anti()
+               && !moveCountPruning
+               &&  pos.capture(move)
+               &&  MoveList<LEGAL>(pos).size() == 1)
+          extension = ONE_PLY;
+#endif
 
       // Calculate new depth for this move
       newDepth = depth - ONE_PLY + extension;
 
       // Step 13. Pruning at shallow depth
-#ifdef RACE
-      if (pos.is_race() && type_of(moved_piece) == KING && rank_of(to_sq(move)) > rank_of(from_sq(move))) {} else
-#endif
       if (  !rootNode
           && bestValue > VALUE_MATED_IN_MAX_PLY)
       {
@@ -1159,17 +1158,19 @@ moves_loop: // When in check search starts from here
           )
           {
               // Move count based pruning
-              if (moveCountPruning)
+              if (moveCountPruning) {
+                  skipQuiets = true;
                   continue;
+              }
 
               // Reduced depth of the next LMR search
               int lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
 
               // Countermoves based pruning
               if (   lmrDepth < 3
-                  && (((*cmh )[moved_piece][to_sq(move)] < VALUE_ZERO) || !cm_ok)
-                  && (((*fmh )[moved_piece][to_sq(move)] < VALUE_ZERO) || !fm_ok)
-                  && (((*fmh2)[moved_piece][to_sq(move)] < VALUE_ZERO) || !fm2_ok || (cm_ok && fm_ok)))
+                  && ((cmh[moved_piece][to_sq(move)] < VALUE_ZERO) || !cm_ok)
+                  && ((fmh[moved_piece][to_sq(move)] < VALUE_ZERO) || !fm_ok)
+                  && ((fm2[moved_piece][to_sq(move)] < VALUE_ZERO) || !f2_ok || (cm_ok && fm_ok)))
                   continue;
 
               // Futility pruning: parent node
@@ -1235,9 +1236,9 @@ moves_loop: // When in check search starts from here
                        && !pos.see_ge(make_move(to_sq(move), from_sq(move)),  VALUE_ZERO))
                   r -= 2 * ONE_PLY;
 
-              ss->history =  (*cmh )[moved_piece][to_sq(move)]
-                           + (*fmh )[moved_piece][to_sq(move)]
-                           + (*fmh2)[moved_piece][to_sq(move)]
+              ss->history =  cmh[moved_piece][to_sq(move)]
+                           + fmh[moved_piece][to_sq(move)]
+                           + fm2[moved_piece][to_sq(move)]
                            + thisThread->history.get(~pos.side_to_move(), move)
                            - 4000; // Correction factor
 
@@ -1674,8 +1675,8 @@ moves_loop: // When in check search starts from here
   void update_cm_stats(Stack* ss, Piece pc, Square s, Value bonus) {
 
     for (int i : {1, 2, 4})
-         if (is_ok((ss-i)->currentMove))
-             (ss-i)->counterMoves->update(pc, s, bonus);
+        if (is_ok((ss-i)->currentMove))
+            (ss-i)->counterMoves->update(pc, s, bonus);
   }
 
 

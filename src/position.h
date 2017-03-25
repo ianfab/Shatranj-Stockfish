@@ -364,6 +364,9 @@ template<PieceType Pt> inline Square Position::square(Color c) const {
   // There may be zero, one, or multiple kings
   if (is_anti() && pieceCount[make_piece(c, Pt)] == 0)
       return SQ_NONE;
+  if (is_anti())
+      assert(pieceCount[make_piece(c, Pt)] >= 1);
+  else
 #endif
   assert(pieceCount[make_piece(c, Pt)] == 1);
   return pieceList[make_piece(c, Pt)][0];
@@ -466,11 +469,6 @@ inline bool Position::pawn_passed(Color c, Square s) const {
 }
 
 inline bool Position::advanced_pawn_push(Move m) const {
-#ifdef RACE
-  if (is_race())
-    return   type_of(moved_piece(m)) == KING
-          && rank_of(from_sq(m)) > RANK_4;
-#endif
   return   type_of(moved_piece(m)) == PAWN
         && relative_rank(sideToMove, from_sq(m)) > RANK_4;
 }
