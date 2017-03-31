@@ -81,7 +81,8 @@ struct LimitsType {
   }
 
   bool use_time_management() const {
-    return !(mate | movetime | depth | nodes | infinite);
+    return !(mate | movetime | depth | nodes | infinite) ||
+           time[WHITE] || time[BLACK] || inc[WHITE] || inc[BLACK];
   }
 
   std::vector<Move> searchmoves;
