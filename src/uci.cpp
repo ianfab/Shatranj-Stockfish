@@ -18,6 +18,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -55,9 +56,6 @@ namespace {
 #ifdef KOTH
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
-#ifdef LOSERS
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-#endif
 #ifdef RACE
   "8/8/8/8/8/8/krbnNBRK/qrbnNBRQ w - - 0 1",
 #endif
@@ -66,6 +64,9 @@ namespace {
 #endif
 #ifdef THREECHECK
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 3+3 0 1",
+#endif
+#ifdef LOSERS
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
 #endif
 #ifdef SUICIDE
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1",
@@ -273,6 +274,8 @@ void UCI::loop(int argc, char* argv[]) {
 ///           use negative values for y.
 
 string UCI::value(Value v) {
+
+  assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
   stringstream ss;
 
