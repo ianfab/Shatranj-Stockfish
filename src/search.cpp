@@ -192,7 +192,7 @@ namespace {
   };
 
   // Futility and reductions lookup tables, initialized at startup
-  int FutilityMoveCounts[2][16]; // [improving][depth]
+  int FutilityMoveCounts[VARIANT_NB][2][16]; // [improving][depth]
   int Reductions[2][2][64][64];  // [pv][improving][depth][moveNumber]
   // Threshold used for countermoves based pruning
   const int CounterMovePruneThreshold = 0;
@@ -202,7 +202,6 @@ namespace {
   }
 
 #ifdef CRAZYHOUSE
-  int ZHFutilityMoveCounts[2][16]; // [improving][depth]
   int ZHReductions[2][2][64][64];  // [pv][improving][depth][moveNumber]
 
   template <bool PvNode> Depth zhReduction(bool i, Depth d, int mn) {
@@ -283,7 +282,6 @@ namespace {
   void update_pv(Move* pv, Move move, Move* childPv);
   void update_cm_stats(Stack* ss, Piece pc, Square s, int bonus);
   void update_stats(const Position& pos, Stack* ss, Move move, Move* quiets, int quietsCnt, int bonus);
-  void check_time();
 
 } // namespace
 
@@ -306,10 +304,31 @@ void Search::init() {
                 Reductions[NonPV][imp][d][mc]++;
           }
 
+  for (Variant var = CHESS_VARIANT; var < VARIANT_NB; ++var)
+  {
+#ifdef CRAZYHOUSE
+  if (var == CRAZYHOUSE_VARIANT)
+      for (int d = 0; d < 16; ++d)
+      {
+          FutilityMoveCounts[var][0][d] = int(10.0 + 0.5 * exp(0.8 * d));
+          FutilityMoveCounts[var][1][d] = int(20.0 + 0.5 * exp(0.9 * d));
+      }
+  else
+#endif
+#ifdef RACE
+  if (var == RACE_VARIANT)
+      for (int d = 0; d < 16; ++d)
+      {
+          FutilityMoveCounts[var][0][d] = int(1.5 + 0.5 * pow(d, 1.50));
+          FutilityMoveCounts[var][1][d] = int(4.0 + 0.7 * pow(d, 2.00));
+      }
+  else
+#endif
   for (int d = 0; d < 16; ++d)
   {
-      FutilityMoveCounts[0][d] = int(2.4 + 0.74 * pow(d, 1.78));
-      FutilityMoveCounts[1][d] = int(5.0 + 1.00 * pow(d, 2.00));
+      FutilityMoveCounts[var][0][d] = int(2.4 + 0.74 * pow(d, 1.78));
+      FutilityMoveCounts[var][1][d] = int(5.0 + 1.00 * pow(d, 2.00));
+  }
   }
 
 #ifdef CRAZYHOUSE
@@ -327,11 +346,7 @@ void Search::init() {
                 ZHReductions[NonPV][imp][d][mc]++;
           }
 
-  for (int d = 0; d < 16; ++d)
-  {
-      ZHFutilityMoveCounts[0][d] = int(10.0 + 0.5 * exp(0.8 * d));
-      ZHFutilityMoveCounts[1][d] = int(20.0 + 0.5 * exp(0.9 * d));
-  }
+
 #endif
 
 }
@@ -345,7 +360,6 @@ void Search::clear() {
 
   for (Thread* th : Threads)
   {
-      th->resetCalls = true;
       th->counterMoves.fill(MOVE_NONE);
       th->history.fill(0);
 
@@ -356,6 +370,7 @@ void Search::clear() {
       th->counterMoveHistory[NO_PIECE][0].fill(CounterMovePruneThreshold - 1);
   }
 
+  Threads.main()->callsCnt = 0;
   Threads.main()->previousScore = VALUE_INFINITE;
 }
 
@@ -575,7 +590,7 @@ void Thread::search() {
   multiPV = std::min(multiPV, rootMoves.size());
 
   // Iterative deepening loop until requested to stop or the target depth is reached
-  while (   (rootDepth += ONE_PLY) < DEPTH_MAX
+  while (   (rootDepth = rootDepth + ONE_PLY) < DEPTH_MAX
          && !Signals.stop
          && (!Limits.depth || Threads.main()->rootDepth / ONE_PLY <= Limits.depth))
   {
@@ -769,7 +784,7 @@ namespace {
     Depth extension, newDepth;
     Value bestValue, value, ttValue, eval;
     bool ttHit, inCheck, givesCheck, singularExtensionNode, improving;
-    bool captureOrPromotion, doFullDepthSearch, moveCountPruning, skipQuiets;
+    bool captureOrPromotion, doFullDepthSearch, moveCountPruning, skipQuiets, ttCapture;
     Piece moved_piece;
     int moveCount, quietCount;
 
@@ -782,23 +797,8 @@ namespace {
     ss->ply = (ss-1)->ply + 1;
 
     // Check for the available remaining time
-    if (thisThread->resetCalls.load(std::memory_order_relaxed))
-    {
-        thisThread->resetCalls = false;
-
-        // At low node count increase the checking rate to about 0.1% of nodes
-        // otherwise use a default value.
-        thisThread->callsCnt = Limits.nodes ? std::min(4096, int(Limits.nodes / 1024))
-                                            : 4096;
-    }
-
-    if (--thisThread->callsCnt <= 0)
-    {
-        for (Thread* th : Threads)
-            th->resetCalls = true;
-
-        check_time();
-    }
+    if (thisThread == Threads.main())
+        static_cast<MainThread*>(thisThread)->check_time();
 
     // Used to send selDepth info to GUI
     if (PvNode && thisThread->maxPly < ss->ply)
@@ -904,7 +904,7 @@ namespace {
 
             if (err != TB::ProbeState::FAIL)
             {
-                thisThread->tbHits++;
+                thisThread->tbHits.fetch_add(1, std::memory_order_relaxed);
 
                 int drawScore = TB::UseRule50 ? 1 : 0;
 
@@ -1099,6 +1099,7 @@ moves_loop: // When in check search starts from here
                            && (tte->bound() & BOUND_LOWER)
                            &&  tte->depth() >= depth - 3 * ONE_PLY;
     skipQuiets = false;
+    ttCapture = false;
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
@@ -1138,14 +1139,8 @@ moves_loop: // When in check search starts from here
                   ? pos.check_squares(type_of(pos.piece_on(from_sq(move)))) & to_sq(move)
                   : pos.gives_check(move);
 
-#ifdef CRAZYHOUSE
-      if (pos.is_house())
-          moveCountPruning =   depth < 16 * ONE_PLY
-                            && moveCount >= ZHFutilityMoveCounts[improving][depth / ONE_PLY];
-      else
-#endif
       moveCountPruning =   depth < 16 * ONE_PLY
-                        && moveCount >= FutilityMoveCounts[improving][depth / ONE_PLY];
+                        && moveCount >= FutilityMoveCounts[pos.variant()][improving][depth / ONE_PLY];
 
       // Step 12. Singular and Gives Check Extensions
 
@@ -1268,6 +1263,9 @@ moves_loop: // When in check search starts from here
           continue;
       }
 
+      if (move == ttMove && captureOrPromotion)
+          ttCapture = true;
+
       // Update the current move (this must be done after singular extension search)
       ss->currentMove = move;
       ss->history = &thisThread->counterMoveHistory[moved_piece][to_sq(move)];
@@ -1292,6 +1290,10 @@ moves_loop: // When in check search starts from here
               r -= r ? ONE_PLY : DEPTH_ZERO;
           else
           {
+              // Increase reduction if ttMove is a capture
+              if (ttCapture)
+                  r += ONE_PLY;
+
               // Increase reduction for cut nodes
               if (cutNode)
                   r += 2 * ONE_PLY;
@@ -1582,9 +1584,6 @@ moves_loop: // When in check search starts from here
     {
       assert(is_ok(move));
 
-      // Speculative prefetch as early as possible
-      prefetch(TT.first_entry(pos.key_after(move)));
-
       givesCheck =  type_of(move) == NORMAL && !pos.discovered_check_candidates()
 #ifdef ATOMIC
                   && !pos.is_atomic()
@@ -1612,7 +1611,7 @@ moves_loop: // When in check search starts from here
 #endif
 #ifdef CRAZYHOUSE
           if (pos.is_house())
-              futilityValue = futilityBase + 2 * PieceValue[pos.variant()][EG][pos.piece_on(to_sq(move))];
+              futilityValue = futilityBase + 2 * PieceValue[CRAZYHOUSE_VARIANT][EG][pos.piece_on(to_sq(move))];
           else
 #endif
           futilityValue = futilityBase + PieceValue[pos.variant()][EG][pos.piece_on(to_sq(move))];
@@ -1641,6 +1640,9 @@ moves_loop: // When in check search starts from here
           &&  type_of(move) != PROMOTION
           &&  !pos.see_ge(move))
           continue;
+
+      // Speculative prefetch as early as possible
+      prefetch(TT.first_entry(pos.key_after(move)));
 
       // Check for legality just before making the move
       if (!pos.legal(move))
@@ -1812,11 +1814,19 @@ moves_loop: // When in check search starts from here
   }
 #endif
 
+} // namespace
 
   // check_time() is used to print debug info and, more importantly, to detect
   // when we are out of available time and thus stop the search.
 
-  void check_time() {
+  void MainThread::check_time() {
+
+    if (--callsCnt > 0)
+        return;
+
+    // At low node count increase the checking rate to about 0.1% of nodes
+    // otherwise use a default value.
+    callsCnt = Limits.nodes ? std::min(4096, int(Limits.nodes / 1024)) : 4096;
 
     static TimePoint lastInfoTime = now();
 
@@ -1838,8 +1848,6 @@ moves_loop: // When in check search starts from here
         || (Limits.nodes && Threads.nodes_searched() >= (uint64_t)Limits.nodes))
             Signals.stop = true;
   }
-
-} // namespace
 
 
 /// UCI::pv() formats PV information according to the UCI protocol. UCI requires
