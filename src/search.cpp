@@ -330,24 +330,6 @@ void Search::init() {
   }
   }
 
-#ifdef CRAZYHOUSE
-  for (int imp = 0; imp <= 1; ++imp)
-      for (int d = 1; d < 64; ++d)
-          for (int mc = 1; mc < 64; ++mc)
-          {
-              double r = log(d) * log(mc) / 2.00;
-
-              ZHReductions[NonPV][imp][d][mc] = int(std::round(r));
-              ZHReductions[PV][imp][d][mc] = std::max(ZHReductions[NonPV][imp][d][mc] - 1, 0);
-
-              // Increase reduction for non-PV nodes when eval is not improving
-              if (!imp && ZHReductions[NonPV][imp][d][mc] >= 2)
-                ZHReductions[NonPV][imp][d][mc]++;
-          }
-
-
-#endif
-
 }
 
 
@@ -667,10 +649,7 @@ void Thread::search() {
                   }
               }
               else if (bestValue >= beta)
-              {
-                  alpha = (alpha + beta) / 2;
                   beta = std::min(bestValue + delta, VALUE_INFINITE);
-              }
               else
                   break;
 
@@ -937,9 +916,9 @@ namespace {
             eval = ss->staticEval = evaluate(pos);
 
         // Can ttValue be used as a better position evaluation?
-        if (ttValue != VALUE_NONE)
-            if (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER))
-                eval = ttValue;
+        if (   ttValue != VALUE_NONE
+            && (tte->bound() & (ttValue > eval ? BOUND_LOWER : BOUND_UPPER)))
+            eval = ttValue;
     }
     else
     {
@@ -1175,13 +1154,6 @@ moves_loop: // When in check search starts from here
                &&  MoveList<LEGAL>(pos).size() == 1)
           extension = ONE_PLY;
 #endif
-#ifdef CRAZYHOUSE
-      else if (    pos.is_house()
-               &&  givesCheck
-               && !moveCountPruning
-               &&  pos.see_ge(move, - pos.material_in_hand(pos.side_to_move()) / 2))
-          extension = ONE_PLY;
-#endif
 
       // Calculate new depth for this move
       newDepth = depth - ONE_PLY + extension;
@@ -1219,11 +1191,6 @@ moves_loop: // When in check search starts from here
 
               // Reduced depth of the next LMR search
               int lmrDepth;
-#ifdef CRAZYHOUSE
-              if (pos.is_house())
-                  lmrDepth = std::max(newDepth - zhReduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
-              else
-#endif
               lmrDepth = std::max(newDepth - reduction<PvNode>(improving, depth, moveCount), DEPTH_ZERO) / ONE_PLY;
 
               // Countermoves based pruning
@@ -1281,13 +1248,18 @@ moves_loop: // When in check search starts from here
           &&  moveCount > 1
           && (!captureOrPromotion || moveCountPruning))
       {
-#ifdef CRAZYHOUSE
-          Depth r = pos.is_house() ? zhReduction<PvNode>(improving, depth, moveCount)
-                                   : reduction<PvNode>(improving, depth, moveCount);
-#else
           Depth r = reduction<PvNode>(improving, depth, moveCount);
-#endif
 
+#ifdef ANTI
+          if (pos.is_anti() && pos.can_capture())
+              r -= r ? ONE_PLY : DEPTH_ZERO;
+          else
+#endif
+#ifdef CRAZYHOUSE
+          if (pos.is_house() && givesCheck)
+              r -= r ? ONE_PLY : DEPTH_ZERO;
+          else
+#endif
           if (captureOrPromotion)
               r -= r ? ONE_PLY : DEPTH_ZERO;
           else
@@ -1390,8 +1362,8 @@ moves_loop: // When in check search starts from here
                   ++static_cast<MainThread*>(thisThread)->bestMoveChanges;
           }
           else
-              // All other moves but the PV are set to the lowest value: this is
-              // not a problem when sorting because the sort is stable and the
+              // All other moves but the PV are set to the lowest value: this
+              // is not a problem when sorting because the sort is stable and the
               // move position in the list is preserved - just the PV is pushed up.
               rm.score = -VALUE_INFINITE;
       }
@@ -1551,9 +1523,9 @@ moves_loop: // When in check search starts from here
                 ss->staticEval = bestValue = evaluate(pos);
 
             // Can ttValue be used as a better position evaluation?
-            if (ttValue != VALUE_NONE)
-                if (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER))
-                    bestValue = ttValue;
+            if (   ttValue != VALUE_NONE
+                && (tte->bound() & (ttValue > bestValue ? BOUND_LOWER : BOUND_UPPER)))
+                bestValue = ttValue;
         }
         else
             ss->staticEval = bestValue =
