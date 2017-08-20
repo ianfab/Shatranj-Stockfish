@@ -84,7 +84,7 @@ public:
 
 struct MainThread : public Thread {
 
-  using Thread::Thread;
+  explicit MainThread(size_t n) : Thread(n) { }
 
   void search() override;
   void check_time();
