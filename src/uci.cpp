@@ -274,7 +274,7 @@ std::string UCI::square(Square s) {
 
 /// UCI::move() converts a Move to a string in coordinate notation (g1f3, a7a8q).
 
-string UCI::move(Move m, bool chess960) {
+string UCI::move(Move m) {
 
   Square from = from_sq(m);
   Square to = to_sq(m);
@@ -303,7 +303,7 @@ Move UCI::to_move(const Position& pos, string& str) {
       str[4] = char(tolower(str[4]));
 
   for (const auto& m : MoveList<LEGAL>(pos))
-      if (str == UCI::move(m, pos.is_chess960()))
+      if (str == UCI::move(m))
           return m;
 
   return MOVE_NONE;

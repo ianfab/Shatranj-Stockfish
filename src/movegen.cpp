@@ -43,7 +43,6 @@ namespace {
     const Color    Them     = (Us == WHITE ? BLACK      : WHITE);
     const Bitboard TRank8BB = (Us == WHITE ? Rank8BB    : Rank1BB);
     const Bitboard TRank7BB = (Us == WHITE ? Rank7BB    : Rank2BB);
-    const Bitboard TRank3BB = (Us == WHITE ? Rank3BB    : Rank6BB);
     const Square   Up       = (Us == WHITE ? NORTH      : SOUTH);
     const Square   Right    = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
     const Square   Left     = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
@@ -104,8 +103,6 @@ namespace {
         Bitboard b1 = shift<Right>(pawnsOn7) & enemies;
         Bitboard b2 = shift<Left >(pawnsOn7) & enemies;
         Bitboard b3 = shift<Up   >(pawnsOn7) & emptySquares;
-
-        Square ksq = pos.square<KING>(Them);
 
         while (b1)
             moveList = make_promotions<Type, Right>(moveList, pop_lsb(&b1));

@@ -171,7 +171,7 @@ Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Th
       incremented after Black's move.
 */
 
-  unsigned char col, row, token;
+  unsigned char token;
   size_t idx;
   Square sq = SQ_A8;
   std::istringstream ss(fenStr);
