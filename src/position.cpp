@@ -392,6 +392,10 @@ bool Position::legal(Move m) const {
   assert(color_of(moved_piece(m)) == us);
   assert(piece_on(square<KING>(us)) == make_piece(us, KING));
 
+  if (   count<ALL_PIECES>(us) == 1
+      && (count<ALL_PIECES>(~us) > 2 || !capture(m)))
+      return false;
+
   // If the moving piece is a king, check whether the destination
   // square is attacked by the opponent.
   if (type_of(piece_on(from)) == KING)
