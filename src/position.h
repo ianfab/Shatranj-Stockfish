@@ -239,8 +239,7 @@ template<PieceType Pt> inline Square Position::square(Color c) const {
 template<PieceType Pt>
 inline Bitboard Position::attacks_from(Square s) const {
   assert(Pt != PAWN);
-  return  Pt == BISHOP || Pt == ROOK ? attacks_bb<Pt>(s, byTypeBB[ALL_PIECES])
-        : Pt == QUEEN  ? attacks_from<ROOK>(s) | attacks_from<BISHOP>(s)
+  return  Pt == ROOK ? attacks_bb<Pt>(s, byTypeBB[ALL_PIECES])
         : PseudoAttacks[Pt][s];
 }
 

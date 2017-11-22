@@ -67,11 +67,8 @@ PieceType min_attacker(const Bitboard* bb, Square to, Bitboard stmAttackers,
 
   occupied ^= b & ~(b - 1);
 
-  if (Pt == PAWN || Pt == BISHOP || Pt == QUEEN)
-      attackers |= attacks_bb<BISHOP>(to, occupied) & (bb[BISHOP] | bb[QUEEN]);
-
-  if (Pt == ROOK || Pt == QUEEN)
-      attackers |= attacks_bb<ROOK>(to, occupied) & (bb[ROOK] | bb[QUEEN]);
+  if (Pt == ROOK)
+      attackers |= attacks_bb<ROOK>(to, occupied) & bb[ROOK];
 
   attackers &= occupied; // After X-ray that may add already processed pieces
   return (PieceType)Pt;
@@ -244,7 +241,7 @@ void Position::set_check_info(StateInfo* si) const {
   si->checkSquares[KNIGHT] = attacks_from<KNIGHT>(ksq);
   si->checkSquares[BISHOP] = attacks_from<BISHOP>(ksq);
   si->checkSquares[ROOK]   = attacks_from<ROOK>(ksq);
-  si->checkSquares[QUEEN]  = si->checkSquares[BISHOP] | si->checkSquares[ROOK];
+  si->checkSquares[QUEEN]  = attacks_from<QUEEN>(ksq);
   si->checkSquares[KING]   = 0;
 }
 
@@ -362,8 +359,7 @@ Bitboard Position::slider_blockers(Bitboard sliders, Square s, Bitboard& pinners
   pinners = 0;
 
   // Snipers are sliders that attack 's' when a piece is removed
-  Bitboard snipers = (  (PseudoAttacks[  ROOK][s] & pieces(QUEEN, ROOK))
-                      | (PseudoAttacks[BISHOP][s] & pieces(QUEEN, BISHOP))) & sliders;
+  Bitboard snipers = PseudoAttacks[ROOK][s] & pieces(ROOK) & sliders;
 
   while (snipers)
   {
@@ -389,8 +385,9 @@ Bitboard Position::attackers_to(Square s, Bitboard occupied) const {
   return  (attacks_from<PAWN>(s, BLACK)    & pieces(WHITE, PAWN))
         | (attacks_from<PAWN>(s, WHITE)    & pieces(BLACK, PAWN))
         | (attacks_from<KNIGHT>(s)         & pieces(KNIGHT))
-        | (attacks_bb<  ROOK>(s, occupied) & pieces(  ROOK, QUEEN))
-        | (attacks_bb<BISHOP>(s, occupied) & pieces(BISHOP, QUEEN))
+        | (attacks_from<BISHOP>(s)         & pieces(BISHOP))
+        | (attacks_bb<  ROOK>(s, occupied) & pieces(ROOK))
+        | (attacks_from<QUEEN>(s)          & pieces(QUEEN))
         | (attacks_from<KING>(s)           & pieces(KING));
 }
 

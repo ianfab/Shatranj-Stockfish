@@ -162,9 +162,9 @@ enum Value : int {
 
   PawnValueMg   = 171,   PawnValueEg   = 240,
   KnightValueMg = 764,   KnightValueEg = 848,
-  BishopValueMg = 826,   BishopValueEg = 891,
+  BishopValueMg = 326,   BishopValueEg = 391,
   RookValueMg   = 1282,  RookValueEg   = 1373,
-  QueenValueMg  = 2526,  QueenValueEg  = 2646,
+  QueenValueMg  = 426,   QueenValueEg  = 446,
 
   MidgameLimit  = 15258, EndgameLimit  = 3915
 };

@@ -306,9 +306,8 @@ namespace {
     while ((s = *pl++) != SQ_NONE)
     {
         // Find attacked squares, including x-ray attacks for bishops and rooks
-        b = Pt == BISHOP ? attacks_bb<BISHOP>(s, pos.pieces() ^ pos.pieces(Us, QUEEN))
-          : Pt ==   ROOK ? attacks_bb<  ROOK>(s, pos.pieces() ^ pos.pieces(Us, ROOK, QUEEN))
-                         : pos.attacks_from<Pt>(s);
+        b = Pt == ROOK ? attacks_bb<ROOK>(s, pos.pieces() ^ pos.pieces(Us, ROOK))
+                       : pos.attacks_from<Pt>(s);
 
         if (pos.pinned_pieces(Us) & s)
             b &= LineBB[pos.square<KING>(Us)][s];
@@ -352,10 +351,6 @@ namespace {
             {
                 // Penalty for pawns on the same color square as the bishop
                 score -= BishopPawns * pe->pawns_on_same_color_squares(Us, s);
-
-                // Bonus for bishop on a long diagonal which can "see" both center squares
-                if (more_than_one(Center & (attacks_bb<BISHOP>(s, pos.pieces(PAWN)) | s)))
-                    score += LongRangedBishop;
             }
 
             // An important Chess960 pattern: A cornered bishop blocked by a friendly

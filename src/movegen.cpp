@@ -149,7 +149,7 @@ namespace {
     {
         if (Checks)
         {
-            if (    (Pt == BISHOP || Pt == ROOK || Pt == QUEEN)
+            if (     Pt == ROOK
                 && !(PseudoAttacks[Pt][from] & target & pos.check_squares(Pt)))
                 continue;
 
@@ -247,7 +247,7 @@ ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* moveList) {
      Bitboard b = pos.attacks_from(pt, from) & ~pos.pieces();
 
      if (pt == KING)
-         b &= ~PseudoAttacks[QUEEN][pos.square<KING>(~us)];
+         b &= ~PseudoAttacks[ROOK][pos.square<KING>(~us)];
 
      while (b)
          *moveList++ = make_move(from, pop_lsb(&b));
@@ -268,7 +268,7 @@ ExtMove* generate<EVASIONS>(const Position& pos, ExtMove* moveList) {
   Color us = pos.side_to_move();
   Square ksq = pos.square<KING>(us);
   Bitboard sliderAttacks = 0;
-  Bitboard sliders = pos.checkers() & ~pos.pieces(KNIGHT, PAWN);
+  Bitboard sliders = pos.checkers() & pos.pieces(ROOK);
 
   // Find all the squares attacked by slider checkers. We will remove them from
   // the king evasions in order to skip known illegal moves, which avoids any
