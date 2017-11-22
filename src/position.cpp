@@ -201,16 +201,6 @@ Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Th
   sideToMove = (token == 'w' ? WHITE : BLACK);
   ss >> token;
 
-  // 3. -
-  while ((ss >> token) && !isspace(token))
-  {
-  }
-
-  // 4. -
-  while ((ss >> token) && !isspace(token))
-  {
-  }
-
   // 5-6. Halfmove clock and fullmove number
   ss >> std::skipws >> st->rule50 >> gamePly;
 
@@ -304,7 +294,7 @@ Position& Position::set(const string& code, Color c, StateInfo* si) {
   std::transform(sides[c].begin(), sides[c].end(), sides[c].begin(), tolower);
 
   string fenStr = "8/" + sides[0] + char(8 - sides[0].length() + '0') + "/8/8/8/8/"
-                       + sides[1] + char(8 - sides[1].length() + '0') + "/8 w - - 0 10";
+                       + sides[1] + char(8 - sides[1].length() + '0') + "/8 w 0 10";
 
   return set(fenStr, false, si, nullptr);
 }
@@ -338,9 +328,7 @@ const string Position::fen() const {
 
   ss << (sideToMove == WHITE ? " w " : " b ");
 
-  ss << '-';
-
-  ss << " - " << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
+  ss << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
 
   return ss.str();
 }
@@ -851,14 +839,8 @@ void Position::flip() {
   ss >> token; // Active color
   f += (token == "w" ? "B " : "W "); // Will be lowercased later
 
-  ss >> token;
-  f += token + " ";
-
   std::transform(f.begin(), f.end(), f.begin(),
                  [](char c) { return char(islower(c) ? toupper(c) : tolower(c)); });
-
-  ss >> token;
-  f += token;
 
   std::getline(ss, token); // Half and full moves
   f += token;
