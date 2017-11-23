@@ -201,6 +201,13 @@ Position& Position::set(const string& fenStr, bool isChess960, StateInfo* si, Th
   sideToMove = (token == 'w' ? WHITE : BLACK);
   ss >> token;
 
+  // 3-4. Skip castling and en passant flags if present
+  if (!isdigit(ss.peek()))
+  {
+      while ((ss >> token) && !isspace(token)) {}
+      while ((ss >> token) && !isspace(token)) {}
+  }
+
   // 5-6. Halfmove clock and fullmove number
   ss >> std::skipws >> st->rule50 >> gamePly;
 
