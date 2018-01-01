@@ -246,7 +246,7 @@ void MainThread::search() {
   {
       rootMoves.emplace_back(MOVE_NONE);
       sync_cout << "info depth 0 score "
-                << UCI::value(-VALUE_MATE)
+                << UCI::value(rootPos.count<ALL_PIECES>() == 2 ? VALUE_DRAW : -VALUE_MATE)
                 << sync_endl;
   }
   else
@@ -1102,7 +1102,8 @@ moves_loop: // When in check search starts from here
     assert(moveCount || !inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
     if (!moveCount)
-        bestValue = excludedMove ? alpha
+        bestValue =  excludedMove ? alpha
+                   : pos.count<ALL_PIECES>() == 2 ? DrawValue[pos.side_to_move()]
                    : mated_in(ss->ply);
     else if (bestMove)
     {
