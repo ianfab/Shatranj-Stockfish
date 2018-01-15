@@ -30,7 +30,16 @@ using namespace std;
 namespace {
 
 const vector<string> Defaults = {
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w 0 1"
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w 0 1",
+  "8/8/2k1nb2/3q3P/2p5/1NR1K3/8/8 w 0 1",
+  "r2kq2r/p1nppp2/1ppbbnpp/8/2P5/1PNBBPPN/P2PPQ1P/R2K3R b 1 10",
+  "5r1r/pppq2k1/2nbbnpp/4p3/4P3/2PBQNPP/PP1NP3/R2K3R b 1 21",
+  "3r4/1pk2q1p/2p1b3/2n2p2/1bPN3P/1P1PQ1P1/r3P3/1R1K2R1 b 0 32",
+  "r2k4/2n3rp/p1pn1p2/PpNpP3/2b1q2R/1PP1B1P1/2KQ1PN1/R4B2 b 0 33",
+  "2r5/R4nk1/p1p2n1p/P3p3/2p1p2R/2P1B1P1/2KQ1P2/5B2 w 0 46",
+  "6b1/7P/2k5/8/8/4K3/8/8 w 0 1", // bare king in 1
+  "4k3/4P3/4K3/p7/P7/8/8/8 b 0 1", // stalemate
+  "6k1/6Rp/1p3PNn/1P2B3/4p3/2q5/2b2K2/3r4 b 0 1" // mate
 };
 
 } // namespace
