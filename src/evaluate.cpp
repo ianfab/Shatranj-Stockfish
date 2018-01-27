@@ -176,11 +176,11 @@ namespace {
   // which piece type attacks which one. Attacks on lesser pieces which are
   // pawn-defended are not considered.
   const Score ThreatByMinor[PIECE_TYPE_NB] = {
-    S(0, 0), S(0, 33), S(45, 43), S(46, 47), S(72, 107), S(48, 118)
+    S(0, 0), S(0, 33), S(45, 43), S(46, 47), S(72, 107), S(20, 20)
   };
 
   const Score ThreatByRook[PIECE_TYPE_NB] = {
-    S(0, 0), S(0, 25), S(40, 62), S(40, 59), S(0, 34), S(35, 48)
+    S(0, 0), S(0, 25), S(40, 62), S(40, 59), S(0, 34), S(20, 20)
   };
 
   // ThreatByKing[on one/on many] contains bonuses for king attacks on
@@ -208,7 +208,6 @@ namespace {
   const Score BishopPawns         = S(  8, 12);
   const Score RookOnPawn          = S(  8, 24);
   const Score TrappedRook         = S( 92,  0);
-  const Score WeakQueen           = S( 50, 10);
   const Score OtherCheck          = S( 10, 10);
   const Score CloseEnemies        = S(  7,  0);
   const Score PawnlessFlank       = S( 20, 80);
@@ -234,9 +233,7 @@ namespace {
   const int KnightCheck = 790;
 
   // Threshold for lazy and space evaluation
-  const Value LazyThreshold  = Value(1500);
   const Value SpaceThreshold = Value(12222);
-
 
   // initialize() computes king and pawn attacks, and the king ring bitboard
   // for a given color. This is done at the beginning of the evaluation.
@@ -380,14 +377,6 @@ namespace {
                     score -= (TrappedRook - make_score(mob * 22, 0)) * 2;
             }
         }
-
-        if (Pt == QUEEN)
-        {
-            // Penalty if any relative pin or discovered attack against the queen
-            Bitboard pinners;
-            if (pos.slider_blockers(pos.pieces(Them, ROOK, BISHOP), s, pinners))
-                score -= WeakQueen;
-        }
     }
 
     if (T)
@@ -437,9 +426,8 @@ namespace {
                     + 102 * kingAdjacentZoneAttacksCount[Them]
                     + 191 * popcount(kingOnlyDefended | undefended)
                     + 143 * !!pos.pinned_pieces(Us)
-                    - 848 * !pos.count<QUEEN>(Them)
                     -   9 * mg_value(score) / 8
-                    +  40;
+                    - 1000;
 
         // Analyse the safe enemy's checks which are possible on next move
         safe  = ~pos.pieces(Them);
@@ -449,14 +437,13 @@ namespace {
         b2 = pos.attacks_from<BISHOP>(ksq);
 
         // Enemy queen safe checks
-        if ((b1 | b2) & attackedBy[Them][QUEEN] & safe)
+        if (pos.attacks_from<QUEEN>(ksq) & attackedBy[Them][QUEEN] & safe)
             kingDanger += QueenCheck;
 
         // For minors and rooks, also consider the square safe if attacked twice,
         // and only defended by our queen.
         safe |=  attackedBy2[Them]
-               & ~(attackedBy2[Us] | pos.pieces(Them))
-               & attackedBy[Us][QUEEN];
+               & ~(attackedBy2[Us] | pos.pieces(Them));
 
         // Some other potential checks are also analysed, even from squares
         // currently occupied by the opponent own pieces, as long as the square
@@ -590,7 +577,7 @@ namespace {
     }
 
     // Bonus for opponent unopposed weak pawns
-    if (pos.pieces(Us, ROOK, QUEEN))
+    if (pos.pieces(Us, ROOK))
         score += WeakUnopposedPawn * pe->weak_unopposed(Them);
 
     // Find squares where our pawns can push on the next move
@@ -828,11 +815,6 @@ namespace {
     pe = Pawns::probe(pos);
     score += pe->pawns_score();
 
-    // Early exit if score is high
-    Value v = (mg_value(score) + eg_value(score)) / 2;
-    if (abs(v) > LazyThreshold)
-       return pos.side_to_move() == WHITE ? v : -v;
-
     // Main evaluation begins here
 
     initialize<WHITE>();
@@ -862,8 +844,8 @@ namespace {
 
     // Interpolate between a middlegame and a (scaled by 'sf') endgame score
     ScaleFactor sf = evaluate_scale_factor(eg_value(score));
-    v =  mg_value(score) * int(me->game_phase())
-       + eg_value(score) * int(PHASE_MIDGAME - me->game_phase()) * sf / SCALE_FACTOR_NORMAL;
+    Value v =  mg_value(score) * int(me->game_phase())
+             + eg_value(score) * int(PHASE_MIDGAME - me->game_phase()) * sf / SCALE_FACTOR_NORMAL;
 
     v /= int(PHASE_MIDGAME);
 
