@@ -42,19 +42,6 @@ namespace {
     100, 90, 80, 70, 70, 80, 90, 100
   };
 
-  // Table used to drive the king towards a corner square of the
-  // right color in KBN vs K endgames.
-  const int PushToCorners[SQUARE_NB] = {
-    200, 190, 180, 170, 160, 150, 140, 130,
-    190, 180, 170, 160, 150, 140, 130, 140,
-    180, 170, 155, 140, 140, 125, 140, 150,
-    170, 160, 140, 120, 110, 140, 150, 160,
-    160, 150, 140, 110, 120, 140, 160, 170,
-    150, 140, 125, 140, 140, 155, 170, 180,
-    140, 130, 140, 150, 160, 170, 180, 190,
-    130, 140, 150, 160, 170, 180, 190, 200
-  };
-
   // Tables used to drive a piece towards or away from another piece
   const int PushClose[8] = { 0, 0, 100, 80, 60, 40, 20, 10 };
   const int PushAway [8] = { 0, 5, 20, 40, 60, 80, 90, 100 };
