@@ -508,7 +508,6 @@ namespace {
     const Square Up         = (Us == WHITE ? NORTH      : SOUTH);
     const Square Left       = (Us == WHITE ? NORTH_WEST : SOUTH_EAST);
     const Square Right      = (Us == WHITE ? NORTH_EAST : SOUTH_WEST);
-    const Bitboard TRank3BB = (Us == WHITE ? Rank3BB    : Rank6BB);
 
     Bitboard b, weak, defended, stronglyProtected, safeThreats;
     Score score = SCORE_ZERO;
@@ -577,7 +576,6 @@ namespace {
 
     // Find squares where our pawns can push on the next move
     b  = shift<Up>(pos.pieces(Us, PAWN)) & ~pos.pieces();
-    b |= shift<Up>(b & TRank3BB) & ~pos.pieces();
 
     // Keep only the squares which are not completely unsafe
     b &= ~attackedBy[Them][PAWN]
