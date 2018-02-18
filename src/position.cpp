@@ -48,10 +48,10 @@ namespace Zobrist {
 
 namespace {
 
-const string PieceToChar(" PNBRQK  pnbrqk");
+const string PieceToChar(" PBQNRK  pbqnrk");
 
-const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
-                         B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
+const Piece Pieces[] = { W_PAWN, W_BISHOP, W_QUEEN, W_KNIGHT, W_ROOK, W_KING,
+                         B_PAWN, B_BISHOP, B_QUEEN, B_KNIGHT, B_ROOK, B_KING };
 
 // min_attacker() is a helper function used by see_ge() to locate the least
 // valuable attacker for the side to move, remove the attacker we just found
@@ -235,10 +235,10 @@ void Position::set_check_info(StateInfo* si) const {
   Square ksq = square<KING>(~sideToMove);
 
   si->checkSquares[PAWN]   = attacks_from<PAWN>(ksq, ~sideToMove);
-  si->checkSquares[KNIGHT] = attacks_from<KNIGHT>(ksq);
   si->checkSquares[BISHOP] = attacks_from<BISHOP>(ksq);
-  si->checkSquares[ROOK]   = attacks_from<ROOK>(ksq);
   si->checkSquares[QUEEN]  = attacks_from<QUEEN>(ksq);
+  si->checkSquares[KNIGHT] = attacks_from<KNIGHT>(ksq);
+  si->checkSquares[ROOK]   = attacks_from<ROOK>(ksq);
   si->checkSquares[KING]   = 0;
 }
 
@@ -379,10 +379,10 @@ Bitboard Position::attackers_to(Square s, Bitboard occupied) const {
 
   return  (attacks_from<PAWN>(s, BLACK)    & pieces(WHITE, PAWN))
         | (attacks_from<PAWN>(s, WHITE)    & pieces(BLACK, PAWN))
-        | (attacks_from<KNIGHT>(s)         & pieces(KNIGHT))
         | (attacks_from<BISHOP>(s)         & pieces(BISHOP))
-        | (attacks_bb<  ROOK>(s, occupied) & pieces(ROOK))
         | (attacks_from<QUEEN>(s)          & pieces(QUEEN))
+        | (attacks_from<KNIGHT>(s)         & pieces(KNIGHT))
+        | (attacks_bb<  ROOK>(s, occupied) & pieces(ROOK))
         | (attacks_from<KING>(s)           & pieces(KING));
 }
 
@@ -431,7 +431,7 @@ bool Position::pseudo_legal(const Move m) const {
       return MoveList<LEGAL>(*this).contains(m);
 
   // Is not a promotion, so promotion piece must be empty
-  if (promotion_type(m) - KNIGHT != NO_PIECE_TYPE)
+  if (promotion_type(m) - BISHOP != NO_PIECE_TYPE)
       return false;
 
   // If the 'from' square is not occupied by a piece belonging to the side to
@@ -593,7 +593,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
           Piece promotion = make_piece(us, promotion_type(m));
 
           assert(relative_rank(us, to) == RANK_8);
-          assert(type_of(promotion) >= KNIGHT && type_of(promotion) <= QUEEN);
+          assert(type_of(promotion) == QUEEN);
 
           remove_piece(pc, to);
           put_piece(promotion, to);
@@ -661,7 +661,7 @@ void Position::undo_move(Move m) {
   {
       assert(relative_rank(us, to) == RANK_8);
       assert(type_of(pc) == promotion_type(m));
-      assert(type_of(pc) >= KNIGHT && type_of(pc) <= QUEEN);
+      assert(type_of(pc) == QUEEN);
 
       remove_piece(pc, to);
       pc = make_piece(us, PAWN);

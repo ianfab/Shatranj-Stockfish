@@ -150,13 +150,13 @@ namespace {
   // MobilityBonus[PieceType-2][attacked] contains bonuses for middle and end game,
   // indexed by piece type and number of attacked squares in the mobility area.
   const Score MobilityBonus[][16] = {
+    { S(-48,-59), S(-20,-23), S( 16, -3), S( 26, 13), S( 38, 24) },           // Bishops
+    { S(-39,-36), S(-21,-15), S(  3,  8), S(  3, 18), S( 14, 34) },           // Queens
     { S(-75,-76), S(-57,-54), S( -9,-28), S( -2,-10), S(  6,  5), S( 14, 12), // Knights
       S( 22, 26), S( 29, 29), S( 36, 29) },
-    { S(-48,-59), S(-20,-23), S( 16, -3), S( 26, 13), S( 38, 24) },           // Bishops
     { S(-58,-76), S(-27,-18), S(-15, 28), S(-10, 55), S( -5, 69), S( -2, 82), // Rooks
       S(  9,112), S( 16,118), S( 30,132), S( 29,142), S( 32,155), S( 38,165),
-      S( 46,166), S( 48,169), S( 58,171) },
-    { S(-39,-36), S(-21,-15), S(  3,  8), S(  3, 18), S( 14, 34) }            // Queens
+      S( 46,166), S( 48,169), S( 58,171) }
   };
 
   // Outpost[knight/bishop][supported by pawn] contains bonuses for minor
@@ -176,11 +176,11 @@ namespace {
   // which piece type attacks which one. Attacks on lesser pieces which are
   // pawn-defended are not considered.
   const Score ThreatByMinor[PIECE_TYPE_NB] = {
-    S(0, 0), S(0, 33), S(45, 43), S(46, 47), S(72, 107), S(20, 20)
+    S(0, 0), S(0, 33), S(46, 47), S(20, 20), S(45, 43), S(72, 107)
   };
 
   const Score ThreatByRook[PIECE_TYPE_NB] = {
-    S(0, 0), S(0, 25), S(40, 62), S(40, 59), S(0, 34), S(20, 20)
+    S(0, 0), S(0, 25), S(40, 59), S(20, 20), S(40, 62), S(0, 34)
   };
 
   // ThreatByKing[on one/on many] contains bonuses for king attacks on
@@ -201,7 +201,7 @@ namespace {
   };
 
   // KingProtector[PieceType-2] contains a bonus according to distance from king
-  const Score KingProtector[] = { S(-3, -5), S(-4, -3), S(-3, 0), S(-1, 1) };
+  const Score KingProtector[] = { S(-4, -3), S(-1, 1), S(-3, -5), S(-3, 0) };
 
   // Assorted bonuses and penalties used by evaluation
   const Score MinorBehindPawn     = S( 16,  0);
@@ -224,7 +224,7 @@ namespace {
   #undef V
 
   // KingAttackWeights[PieceType] contains king attack weights by piece type
-  const int KingAttackWeights[PIECE_TYPE_NB] = { 0, 0, 78, 56, 45, 11 };
+  const int KingAttackWeights[PIECE_TYPE_NB] = { 0, 0, 56, 11, 78, 45 };
 
   // Penalties for enemy's safe checks
   const int QueenCheck  = 780;
@@ -813,10 +813,10 @@ namespace {
     initialize<WHITE>();
     initialize<BLACK>();
 
-    score += evaluate_pieces<WHITE, KNIGHT>() - evaluate_pieces<BLACK, KNIGHT>();
     score += evaluate_pieces<WHITE, BISHOP>() - evaluate_pieces<BLACK, BISHOP>();
-    score += evaluate_pieces<WHITE, ROOK  >() - evaluate_pieces<BLACK, ROOK  >();
     score += evaluate_pieces<WHITE, QUEEN >() - evaluate_pieces<BLACK, QUEEN >();
+    score += evaluate_pieces<WHITE, KNIGHT>() - evaluate_pieces<BLACK, KNIGHT>();
+    score += evaluate_pieces<WHITE, ROOK  >() - evaluate_pieces<BLACK, ROOK  >();
 
     score += mobility[WHITE] - mobility[BLACK];
 
