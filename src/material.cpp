@@ -33,24 +33,24 @@ namespace {
 
   const int QuadraticOurs[][PIECE_TYPE_NB] = {
     //            OUR PIECES
-    // pair pawn knight bishop rook queen
+    // pair pawn bishop queen knight rook
     {1523                               }, // Bishop pair
     {  39,    0                         }, // Pawn
-    {  32,  260,  -3                    }, // Knight      OUR PIECES
-    {   0,  101,   4,    0              }, // Bishop
-    { -26,   -2,  48,   102,  -147      }, // Rook
-    {-187,   25, 122,   137,  -135,   0 }  // Queen
+    {   0,  101,    0                   }, // Bishop     OUR PIECES
+    {-187,   25,  137,    0             }, // Queen
+    {  32,  260,    4,  122,   -3       }, // Knight
+    { -26,   -2,  102, -135,   48, -147 }  // Rook
   };
 
   const int QuadraticTheirs[][PIECE_TYPE_NB] = {
     //           THEIR PIECES
-    // pair pawn knight bishop rook queen
+    // pair pawn bishop queen knight rook
     {   0                               }, // Bishop pair
     {  36,    0                         }, // Pawn
-    {   9,   63,   0                    }, // Knight      OUR PIECES
-    {  58,   64,  42,     0             }, // Bishop
-    {  47,   39,  24,   -25,    0       }, // Rook
-    { 100,   99, -37,   143,  267,    0 }  // Queen
+    {  58,   64,    0                   }, // Bishop      OUR PIECES
+    { 100,   99,  143,    0             }, // Queen
+    {   9,   63,  -42,   37,    0       }, // Knight
+    {  47,   39,  -25, -267,   24,    0 }  // Rook
   };
 
   // Endgame evaluation and scaling functions are accessed directly and not through
@@ -67,7 +67,7 @@ namespace {
     int bonus = 0;
 
     // Second-degree polynomial material imbalance by Tord Romstad
-    for (int pt1 = NO_PIECE_TYPE; pt1 <= QUEEN; ++pt1)
+    for (int pt1 = NO_PIECE_TYPE; pt1 <= ROOK; ++pt1)
     {
         if (!pieceCount[Us][pt1])
             continue;
@@ -149,10 +149,10 @@ Entry* probe(const Position& pos) {
   // for the bishop pair "extended piece", which allows us to be more flexible
   // in defining bishop pair bonuses.
   const int PieceCount[COLOR_NB][PIECE_TYPE_NB] = {
-  { pos.count<BISHOP>(WHITE) > 1, pos.count<PAWN>(WHITE), pos.count<KNIGHT>(WHITE),
-    pos.count<BISHOP>(WHITE)    , pos.count<ROOK>(WHITE), pos.count<QUEEN >(WHITE) },
-  { pos.count<BISHOP>(BLACK) > 1, pos.count<PAWN>(BLACK), pos.count<KNIGHT>(BLACK),
-    pos.count<BISHOP>(BLACK)    , pos.count<ROOK>(BLACK), pos.count<QUEEN >(BLACK) } };
+  { pos.count<BISHOP>(WHITE) > 1, pos.count<PAWN  >(WHITE), pos.count<BISHOP>(WHITE),
+    pos.count<QUEEN >(WHITE)    , pos.count<KNIGHT>(WHITE), pos.count<ROOK  >(WHITE) },
+  { pos.count<BISHOP>(BLACK) > 1, pos.count<PAWN  >(BLACK), pos.count<BISHOP>(BLACK),
+    pos.count<QUEEN >(BLACK)    , pos.count<KNIGHT>(BLACK), pos.count<ROOK  >(BLACK) } };
 
   e->value = int16_t((imbalance<WHITE>(PieceCount) - imbalance<BLACK>(PieceCount)) / 16);
   return e;

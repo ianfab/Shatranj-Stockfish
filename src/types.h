@@ -107,7 +107,7 @@ const int MAX_PLY   = 128;
 ///
 /// bit  0- 5: destination square (from 0 to 63)
 /// bit  6-11: origin square (from 0 to 63)
-/// bit 12-13: promotion piece type - 2 (from KNIGHT-2 to QUEEN-2)
+/// bit 12-13: promotion piece type - 2 (from BISHOP-2 to ROOK-2)
 /// bit 14-15: special move flag: promotion (1)
 ///
 /// Special cases are MOVE_NONE and MOVE_NULL. We can sneak these in because in
@@ -170,15 +170,15 @@ enum Value : int {
 };
 
 enum PieceType {
-  NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
+  NO_PIECE_TYPE, PAWN, BISHOP, QUEEN, KNIGHT, ROOK, KING,
   ALL_PIECES = 0,
   PIECE_TYPE_NB = 8
 };
 
 enum Piece {
   NO_PIECE,
-  W_PAWN = 1, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
-  B_PAWN = 9, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
+  W_PAWN = 1, W_BISHOP, W_QUEEN, W_KNIGHT, W_ROOK, W_KING,
+  B_PAWN = 9, B_BISHOP, B_QUEEN, B_KNIGHT, B_ROOK, B_KING,
   PIECE_NB = 16
 };
 
@@ -403,7 +403,7 @@ inline MoveType type_of(Move m) {
 }
 
 inline PieceType promotion_type(Move m) {
-  return PieceType(((m >> 12) & 3) + KNIGHT);
+  return PieceType(((m >> 12) & 3) + BISHOP);
 }
 
 inline Move make_move(Square from, Square to) {
@@ -411,8 +411,8 @@ inline Move make_move(Square from, Square to) {
 }
 
 template<MoveType T>
-inline Move make(Square from, Square to, PieceType pt = KNIGHT) {
-  return Move(T + ((pt - KNIGHT) << 12) + (from << 6) + to);
+inline Move make(Square from, Square to, PieceType pt = BISHOP) {
+  return Move(T + ((pt - BISHOP) << 12) + (from << 6) + to);
 }
 
 inline bool is_ok(Move m) {
