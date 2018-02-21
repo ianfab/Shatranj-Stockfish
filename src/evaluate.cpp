@@ -628,8 +628,8 @@ namespace {
             Square blockSq = s + Up;
 
             // Adjust bonus based on the king's proximity
-            ebonus +=  distance(pos.square<KING>(Them), blockSq) * 2 * rr
-                     - distance(pos.square<KING>(  Us), blockSq) * 1 * rr;
+            ebonus +=  distance(pos.square<KING>(Them), blockSq) * rr
+                     - distance(pos.square<KING>(  Us), blockSq) * rr / 2;
 
             // If blockSq is not the queening square then consider also a second push
             if (relative_rank(Us, blockSq) != RANK_8)
@@ -653,15 +653,15 @@ namespace {
 
                 // If there aren't any enemy attacks, assign a big bonus. Otherwise
                 // assign a smaller bonus if the block square isn't attacked.
-                int k = !unsafeSquares ? 8 : !(unsafeSquares & blockSq) ? 4 : 0;
+                int k = !unsafeSquares ? 4 : !(unsafeSquares & blockSq) ? 2 : 0;
 
                 // If the path to the queen is fully defended, assign a big bonus.
                 // Otherwise assign a smaller bonus if the block square is defended.
                 if (defendedSquares == squaresToQueen)
-                    k += 3;
+                    k += 2;
 
                 else if (defendedSquares & blockSq)
-                    k += 2;
+                    k += 1;
 
                 mbonus += k * rr, ebonus += k * rr;
             }
