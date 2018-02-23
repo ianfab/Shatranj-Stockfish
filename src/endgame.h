@@ -48,10 +48,6 @@ enum EndgameCode {
   SCALING_FUNCTIONS,
   KRPKR,   // KRP vs KR
   KRPPKRP, // KRPP vs KRP
-  KBPKB,   // KBP vs KB
-  KBPPKB,  // KBPP vs KB
-  KBPKN,   // KBP vs KN
-  KNPKB    // KNP vs KB
 };
 
 
