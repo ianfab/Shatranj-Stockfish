@@ -218,7 +218,6 @@ namespace {
   const Score WeakUnopposedPawn   = S(  5, 25);
   const Score ThreatByPawnPush    = S( 38, 22);
   const Score HinderPassedPawn    = S(  7,  0);
-  const Score TrappedBishopA1H1   = S( 50, 50);
 
   #undef S
   #undef V
@@ -340,20 +339,6 @@ namespace {
             {
                 // Penalty for pawns on the same color square as the bishop
                 score -= BishopPawns * pe->pawns_on_same_color_squares(Us, s);
-            }
-
-            // An important Chess960 pattern: A cornered bishop blocked by a friendly
-            // pawn diagonally in front of it is a very serious problem, especially
-            // when that pawn is also blocked.
-            if (   Pt == BISHOP
-                && pos.is_chess960()
-                && (s == relative_square(Us, SQ_A1) || s == relative_square(Us, SQ_H1)))
-            {
-                Square d = pawn_push(Us) + (file_of(s) == FILE_A ? EAST : WEST);
-                if (pos.piece_on(s + d) == make_piece(Us, PAWN))
-                    score -= !pos.empty(s + d + pawn_push(Us))                ? TrappedBishopA1H1 * 4
-                            : pos.piece_on(s + d + d) == make_piece(Us, PAWN) ? TrappedBishopA1H1 * 2
-                                                                              : TrappedBishopA1H1;
             }
         }
 
