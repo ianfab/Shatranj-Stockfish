@@ -317,17 +317,17 @@ namespace {
         // Bonus for this piece as a king protector
         score += KingProtector[Pt - 2] * distance(s, pos.square<KING>(Us));
 
-        if (Pt == BISHOP || Pt == KNIGHT)
+        if (Pt == BISHOP || Pt == QUEEN || Pt == KNIGHT)
         {
             // Bonus for outpost squares
             bb = OutpostRanks & ~pe->pawn_attacks_span(Them);
             if (bb & s)
-                score += Outpost[Pt == BISHOP][!!(attackedBy[Us][PAWN] & s)] * 2;
+                score += Outpost[Pt != KNIGHT][!!(attackedBy[Us][PAWN] & s)] * 2;
             else
             {
                 bb &= b & ~pos.pieces(Us);
                 if (bb)
-                   score += Outpost[Pt == BISHOP][!!(attackedBy[Us][PAWN] & bb)];
+                   score += Outpost[Pt != KNIGHT][!!(attackedBy[Us][PAWN] & bb)];
             }
 
             // Bonus when behind a pawn
@@ -335,7 +335,7 @@ namespace {
                 && (pos.pieces(PAWN) & (s + pawn_push(Us))))
                 score += MinorBehindPawn;
 
-            if (Pt == BISHOP)
+            if (Pt == BISHOP || Pt == QUEEN)
             {
                 // Penalty for pawns on the same color square as the bishop
                 score -= BishopPawns * pe->pawns_on_same_color_squares(Us, s);
