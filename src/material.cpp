@@ -34,12 +34,12 @@ namespace {
   const int QuadraticOurs[][PIECE_TYPE_NB] = {
     //            OUR PIECES
     // pair pawn bishop queen knight rook
-    {1523                               }, // Bishop pair
+    {1380                               }, // Bishop pair
     {  39,    0                         }, // Pawn
     {   0,  101,    0                   }, // Bishop     OUR PIECES
-    {-187,   25,  137,    0             }, // Queen
-    {  32,  260,    4,  122,   -3       }, // Knight
-    { -26,   -2,  102, -135,   48, -147 }  // Rook
+    {-189,   25,  135,    0             }, // Queen
+    {  32,  268,    4,  124,   -3       }, // Knight
+    { -26,   -2,  102, -134,   47, -148 }  // Rook
   };
 
   const int QuadraticTheirs[][PIECE_TYPE_NB] = {
@@ -47,10 +47,10 @@ namespace {
     // pair pawn bishop queen knight rook
     {   0                               }, // Bishop pair
     {  36,    0                         }, // Pawn
-    {  58,   64,    0                   }, // Bishop      OUR PIECES
-    { 100,   99,  143,    0             }, // Queen
-    {   9,   63,  -42,   37,    0       }, // Knight
-    {  47,   39,  -25, -267,   24,    0 }  // Rook
+    {  58,   63,    0                   }, // Bishop      OUR PIECES
+    { 101,   98,  144,    0             }, // Queen
+    {   9,   62,  -41,   37,    0       }, // Knight
+    {  48,   39,  -25, -276,   24,    0 }  // Rook
   };
 
   // Endgame evaluation and scaling functions are accessed directly and not through
